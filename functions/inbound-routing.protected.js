@@ -11,6 +11,8 @@ exports.handler = async function (context, event, callback) {
     const { connection } = sfdcConnectionIdentity;
     await routeConversation(context, twilioClient, conversationSid, workerNumber, connection);
     return callback(null, response);
+
+    
 };
 
 const routeConversation = async (context, twilioClient, conversationSid,
