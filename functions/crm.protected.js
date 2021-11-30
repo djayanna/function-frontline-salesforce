@@ -5,9 +5,12 @@ exports.handler = async function (context, event, callback) {
   let response = new Twilio.Response();
   response.appendHeader('Content-Type', 'application/json');
   try {
+    console.log(event);
     console.log('Frontline user identity: ' + event.Worker);
     const sfdcConnectionIdentity = await sfdcAuthenticate(context, event.Worker);
-    const { connection, identityInfo } = sfdcConnectionIdentity;
+    console.log('Connected as SF user:' + sfdcConnectionIdentity);
+    const { connection , identityInfo} = sfdcConnectionIdentity;
+    
     console.log('Connected as SF user:' + identityInfo.username);
     switch (event.Location) {
       case 'GetCustomerDetailsByCustomerId': {
@@ -20,6 +23,7 @@ exports.handler = async function (context, event, callback) {
       }
       case 'GetCustomersList': {
         if (event.Query && event.Query.length > 1) {
+          console.log("Getcustomer");
           response.setBody(
             await getCustomersSearch(
               event.Worker,
@@ -59,17 +63,15 @@ const getCustomerDetailsByCustomerIdCallback = async (contactId, connection) => 
   console.log('Getting Customer details: ', contactId);
   let sfdcRecords = [];
   try {
-    sfdcRecords = await connection.sobject("Contact")
+    sfdcRecords = await connection.sobject("Account")
       .find(
         {
           'Id': contactId
         },
         {
           Id: 1,
-          Name: 1,
-          Title: 1,
-          MobilePhone: 1,
-          'Account.Name': 1,
+          Name: 1,        
+          Phone: 1,
         }
       )
       .limit(1)
@@ -92,11 +94,11 @@ const getCustomerDetailsByCustomerIdCallback = async (contactId, connection) => 
         channels: [
           {
             type: 'sms',
-            value: sfdcRecord.MobilePhone
+            value: sfdcRecord.Phone
           },
           {
             type: 'whatsapp',
-            value: `whatsapp:${sfdcRecord.MobilePhone}`
+            value: `whatsapp:${sfdcRecord.Phone}`
           },
           {
             type: 'email',
@@ -115,21 +117,21 @@ const getCustomerDetailsByCustomerIdCallback = async (contactId, connection) => 
 const getCustomersList = async (workerIdentity, connection, pageSize, offset) => {
   let sfdcRecords = [];
   try {
-    sfdcRecords = await connection.sobject("Contact")
-      .find(
-        {
-          'Owner.Username': workerIdentity
-        },
-        {
-          Id: 1,
-          Name: 1,
-        }
-      )
-      .sort({ Name: 1 })
-      .limit(pageSize)
-      .skip(offset ? offset : 0)
-      .execute();
-    console.log("Fetched # SFDC records for customers list: " + sfdcRecords.length);
+    sfdcRecords = await connection.sobject("Account")
+    .find(
+      {
+        
+      },
+      {
+        Id: 1,
+        Name: 1,
+      }
+    )
+    .sort({ Name: 1 })
+    .limit(pageSize)
+    .skip(offset ? offset : 0)
+    .execute();
+    console.log("Fetched # SFDC records for customers list: " + sfdcRecords);
   } catch (err) {
     console.error(err);
   }
@@ -147,6 +149,22 @@ const getCustomersList = async (workerIdentity, connection, pageSize, offset) =>
       next_page_token: parseInt(pageSize) + (offset ? parseInt(offset) : 0)
     }
   };
+  //var records = [];
+// await connection.query("SELECT Id, Name FROM Account", function(err, result) {
+//   if (err) { return console.error("error account", err); }
+//   console.log("total : " + result.totalSize);
+//   console.log("fetched : " + result.records.length);
+//   console.log("done ? : " + result.done);
+//   if (!result.done) {
+//     // you can use the locator to fetch next records set.
+//     // Connection#queryMore()
+//     console.log("next records URL : " + result.nextRecordsUrl);
+//   }
+// });
+
+//sfdcRecords =  await connection.sobject("Account");
+
+
 };
 
 const getCustomersSearch = async (workerIdentity, query, connection, pageSize, offset) => {
