@@ -1,8 +1,5 @@
 const sfdcAuthenticatePath = Runtime.getFunctions()['auth/sfdc-authenticate'].path;
 const { sfdcAuthenticate } = require(sfdcAuthenticatePath);
-const axios = require('axios');
-const base64 = require('base-64');
-
 
 exports.handler = async function (context, event, callback) {
     const twilioClient = context.getTwilioClient();
@@ -15,7 +12,7 @@ exports.handler = async function (context, event, callback) {
     await routeConversation(context, twilioClient, conversationSid, workerNumber, connection);
     return callback(null, response);
 
-
+    
 };
 
 const routeConversation = async (context, twilioClient, conversationSid,
@@ -25,31 +22,17 @@ const routeConversation = async (context, twilioClient, conversationSid,
         // Select a default worker
         workerIdentity = context.DEFAULT_WORKER;
     }
-    await routeConversationToWorker(context,twilioClient, conversationSid, workerIdentity);
+    await routeConversationToWorker(twilioClient, conversationSid, workerIdentity);
 }
 
-const routeConversationToWorker = async (context, twilioClient, conversationSid, workerIdentity) => {
+const routeConversationToWorker = async (twilioClient, conversationSid, workerIdentity) => {
     // Add worker to the conversation with a customer
     console.log('Conversation SID: ', conversationSid);
- 
-    const params = new URLSearchParams()
-    params.append('Identity', workerIdentity)
-        const response = await axios.post(
-            `https://conversations.twilio.com/v1/Conversations/${conversationSid}/Participants`,
-            params,
-            {
-                headers: {
-                    'X-Twilio-Webhook-Enabled': 'true',
-                    Authorization: `Basic ${base64.encode(
-                        `${context.ACCOUNT_SID}:${context.AUTH_TOKEN}`
-                    )}`
-                },
-            }
-        );
-        responseData = response.data;
-        console.log('Created inbound chat message SID: ', responseData.sid);
-
-    
+    const participant = await twilioClient.conversations
+        .conversations(conversationSid)
+        .participants
+        .create({ identity: workerIdentity });
+    console.log('Created agent participant: ', participant.sid);
 }
 
 const getContactOwnerByNumber = async (number, sfdcConn) => {
